@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block header_title %}➕ Nuevo movimiento{% endblock %}
+{% block content %}
+  <form class="form" method="post">
+    <label>Tipo</label>
+    <select name="tipo">
+      {% for t in tipos %}
+        <option value="{{ t }}">{{ t|capitalize }}</option>
+      {% endfor %}
+    </select>
+
+    <label>Concepto</label>
+    <input name="concepto" required placeholder="Ej: Venta pedido #12, compra de tela...">
+
+    <label>Importe (€)</label>
+    <input name="importe" type="number" step="0.01" required>
+
+    <label>Categoría</label>
+    <input name="categoria" placeholder="Ej: material, envío, venta, marketing">
+
+    <label>Fecha</label>
+    <input name="fecha" type="date">
+
+    <label>Pedido relacionado (opcional)</label>
+    <select name="pedido_id">
+      <option value="">-- ninguno --</option>
+      {% for p in pedidos %}
+        <option value="{{ p.id }}">Pedido #{{ p.id }} {{ ('· ' + p.cliente.nombre) if p.cliente else '' }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit">Guardar movimiento</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block header_title %}{{ '✏️ Editar' if producto else '➕ Nueva funda' }}{% endblock %}
+{% block content %}
+  <form class="form" method="post">
+    <label>Nombre</label>
+    <input name="nombre" required value="{{ producto.nombre if producto else '' }}" placeholder="Ej: Funda floral A5">
+
+    <label>Icono (emoji)</label>
+    <input name="icono" value="{{ producto.icono if producto else '📖' }}">
+
+    <label>Modelo / tamaño</label>
+    <input name="modelo" value="{{ producto.modelo if producto else '' }}" placeholder="Ej: A5, Tapa dura...">
+
+    <label>Color / diseño</label>
+    <input name="color" value="{{ producto.color if producto else '' }}">
+
+    <label>Precio (€)</label>
+    <input name="precio" type="number" step="0.01" value="{{ producto.precio if producto else 0 }}">
+
+    <label>Cantidad en stock</label>
+    <input name="cantidad" type="number" value="{{ producto.cantidad if producto else 0 }}">
+
+    <label>Aviso de stock mínimo</label>
+    <input name="stock_minimo" type="number" value="{{ producto.stock_minimo if producto else 3 }}">
+
+    <button type="submit">{{ 'Guardar cambios' if producto else 'Añadir al stock' }}</button>
+    <button type="button" class="secondary" onclick="window.location.href='{{ url_for('stock_list') }}'">Cancelar</button>
+  </form>
+{% endblock %}

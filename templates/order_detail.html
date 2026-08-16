@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block header_title %}Pedido #{{ pedido.id }}{% endblock %}
+{% block content %}
+  <div class="top-actions">
+    <h2>Pedido #{{ pedido.id }}</h2>
+    <span class="status-badge status-{{ pedido.estado }}">{{ pedido.estado }}</span>
+  </div>
+
+  <div class="list-card">
+    <div class="sub">Cliente</div>
+    <div class="title">{{ pedido.cliente.nombre if pedido.cliente else 'Sin asignar' }}</div>
+  </div>
+
+  {% if pedido.captura_imagen %}
+    <img class="preview-img" src="{{ url_for('static', filename=pedido.captura_imagen) }}">
+  {% endif %}
+
+  <div class="section-title">🧾 Fundas</div>
+  <div class="list-card">
+    {% for it in pedido.items %}
+      <div class="item-row">
+        <span>{{ it.cantidad }}x {{ it.producto.nombre if it.producto else it.descripcion }}</span>
+        <span>{{ '%.2f'|format(it.cantidad * it.precio_unitario) }} €</span>
+      </div>
+    {% endfor %}
+    <div class="item-row" style="font-weight:800;">
+      <span>Total</span>
+      <span>{{ '%.2f'|format(pedido.total) }} €</span>
+    </div>
+  </div>
+
+  {% if pedido.notas %}
+    <div class="section-title">📝 Notas</div>
+    <div class="list-card">{{ pedido.notas }}</div>
+  {% endif %}
+
+  <div class="section-title">🔄 Cambiar estado</div>
+  <form class="form" method="post" action="{{ url_for('order_update_status', oid=pedido.id) }}">
+    <select name="estado">
+      {% for e in estados %}
+        <option value="{{ e }}" {{ 'selected' if e==pedido.estado else '' }}>{{ e|capitalize }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Actualizar estado</button>
+  </form>
+
+  <form method="post" action="{{ url_for('order_delete', oid=pedido.id) }}" onsubmit="return confirm('¿Eliminar este pedido?');" style="margin-top:10px;">
+    <button type="submit" style="background:none;border:1px solid #f0c8c8;color:#a13c3c;border-radius:12px;padding:10px;width:100%;">🗑️ Eliminar pedido</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block header_title %}💶 Contabilidad{% endblock %}
+{% block content %}
+  <div class="stat-row">
+    <div class="stat-card income">
+      <div class="value">{{ '%.2f'|format(ingresos) }} €</div>
+      <div class="label">Ingresos</div>
+    </div>
+    <div class="stat-card expense">
+      <div class="value">{{ '%.2f'|format(gastos) }} €</div>
+      <div class="label">Gastos</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">{{ '%.2f'|format(balance) }} €</div>
+      <div class="label">Balance</div>
+    </div>
+  </div>
+
+  <div class="top-actions">
+    <h2>Movimientos</h2>
+    <a href="{{ url_for('movement_new') }}" class="link-btn">+ Añadir</a>
+  </div>
+
+  {% if movimientos %}
+    {% for m in movimientos %}
+      <div class="list-card">
+        <div class="row">
+          <div>
+            <div class="title">{{ m.concepto }}</div>
+            <div class="sub">{{ m.fecha.strftime('%d/%m/%Y') }} {{ ('· ' + m.categoria) if m.categoria else '' }}{{ (' · Pedido #' ~ m.pedido_id) if m.pedido_id else '' }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-weight:800; color: {{ 'var(--green)' if m.tipo=='ingreso' else 'var(--red)' }};">
+              {{ '+' if m.tipo=='ingreso' else '-' }}{{ '%.2f'|format(m.importe) }} €
+            </div>
+            <form method="post" action="{{ url_for('movement_delete', mid=m.id) }}" onsubmit="return confirm('¿Eliminar movimiento?');">
+              <button class="icon-btn" style="background:none;color:var(--muted);border:none;padding:0;">Borrar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <span class="icon">💶</span>
+      Todavía no hay movimientos registrados.
+    </div>
+  {% endif %}
+{% endblock %}

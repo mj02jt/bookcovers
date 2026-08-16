@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block header_title %}📸 Escanear pedido{% endblock %}
+{% block content %}
+  {% if not api_disponible %}
+    <div class="flash">No hay API key de Anthropic configurada todavía: sube la captura y podrás rellenar el pedido mirándola a mano. En cuanto añadas la key en <code>.env</code>, el reconocimiento será automático.</div>
+  {% endif %}
+  <p class="small-muted">Sube la captura de pantalla del chat donde el cliente pide sus fundas (Instagram, WhatsApp, etc.).</p>
+  <form class="form" method="post" action="{{ url_for('scan_process') }}" enctype="multipart/form-data">
+    <label>Captura de pantalla</label>
+    <input type="file" name="captura" accept="image/*" required>
+    <button type="submit">{{ '🔍 Analizar con IA' if api_disponible else '📤 Subir captura' }}</button>
+  </form>
+{% endblock %}

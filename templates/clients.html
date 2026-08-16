@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block header_title %}👤 Clientes{% endblock %}
+{% block content %}
+  <div class="top-actions">
+    <h2>Clientes</h2>
+    <a href="{{ url_for('client_new') }}" class="link-btn">+ Añadir</a>
+  </div>
+
+  {% if clientes %}
+    {% for c in clientes %}
+      <a href="{{ url_for('client_detail', cid=c.id) }}" style="text-decoration:none; color:inherit;">
+        <div class="list-card">
+          <div class="title">{{ c.nombre }}</div>
+          <div class="sub">{{ c.telefono or '' }} {{ ('· ' + c.instagram) if c.instagram else '' }}</div>
+        </div>
+      </a>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <span class="icon">👤</span>
+      Todavía no has añadido clientes.
+    </div>
+  {% endif %}
+{% endblock %}

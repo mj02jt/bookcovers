@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Fundas Libros{% endblock %} · Tienda Fundas</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <span class="menu-icon">📚</span>
+      <h1>{% block header_title %}Tienda Fundas{% endblock %}</h1>
+    </div>
+    <div class="content">
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          {% for m in messages %}
+            <div class="flash">{{ m }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </div>
+    <div class="tabbar">
+      <a href="{{ url_for('stock_list') }}" class="{{ 'active' if active=='stock' else '' }}">
+        <span class="icon">📦</span>Stock
+      </a>
+      <a href="{{ url_for('scan_upload') }}" class="{{ 'active' if active=='scan' else '' }}">
+        <span class="icon">📸</span>Escanear
+      </a>
+      <a href="{{ url_for('orders_list') }}" class="{{ 'active' if active=='orders' else '' }}">
+        <span class="icon">🗂️</span>Pedidos
+      </a>
+      <a href="{{ url_for('clients_list') }}" class="{{ 'active' if active=='clients' else '' }}">
+        <span class="icon">👤</span>Clientes
+      </a>
+      <a href="{{ url_for('accounting_home') }}" class="{{ 'active' if active=='accounting' else '' }}">
+        <span class="icon">💶</span>Cuentas
+      </a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block header_title %}{{ '✏️ Editar cliente' if cliente else '➕ Nuevo cliente' }}{% endblock %}
+{% block content %}
+  <form class="form" method="post">
+    <label>Nombre</label>
+    <input name="nombre" required value="{{ cliente.nombre if cliente else '' }}">
+    <label>Teléfono</label>
+    <input name="telefono" value="{{ cliente.telefono if cliente else '' }}">
+    <label>Email</label>
+    <input name="email" type="email" value="{{ cliente.email if cliente else '' }}">
+    <label>Instagram</label>
+    <input name="instagram" value="{{ cliente.instagram if cliente else '' }}" placeholder="@usuario">
+    <label>Dirección</label>
+    <input name="direccion" value="{{ cliente.direccion if cliente else '' }}">
+    <label>Notas</label>
+    <textarea name="notas" rows="2">{{ cliente.notas if cliente else '' }}</textarea>
+    <button type="submit">{{ 'Guardar cambios' if cliente else 'Añadir cliente' }}</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block header_title %}{{ cliente.nombre }}{% endblock %}
+{% block content %}
+  <div class="top-actions">
+    <h2>{{ cliente.nombre }}</h2>
+    <a href="{{ url_for('client_edit', cid=cliente.id) }}" class="icon-btn">Editar</a>
+  </div>
+
+  <div class="list-card">
+    <div class="item-row"><span>Teléfono</span><span>{{ cliente.telefono or '-' }}</span></div>
+    <div class="item-row"><span>Email</span><span>{{ cliente.email or '-' }}</span></div>
+    <div class="item-row"><span>Instagram</span><span>{{ cliente.instagram or '-' }}</span></div>
+    <div class="item-row"><span>Dirección</span><span>{{ cliente.direccion or '-' }}</span></div>
+  </div>
+
+  {% if cliente.notas %}
+    <div class="section-title">📝 Notas</div>
+    <div class="list-card">{{ cliente.notas }}</div>
+  {% endif %}
+
+  <div class="section-title">🗂️ Pedidos de este cliente</div>
+  {% if cliente.pedidos %}
+    {% for pedido in cliente.pedidos|sort(attribute='creado', reverse=True) %}
+      <a href="{{ url_for('order_detail', oid=pedido.id) }}" style="text-decoration:none; color:inherit;">
+        <div class="list-card">
+          <div class="row">
+            <div>
+              <div class="title">Pedido #{{ pedido.id }}</div>
+              <div class="sub">{{ pedido.creado.strftime('%d/%m/%Y') }} · {{ '%.2f'|format(pedido.total) }} €</div>
+            </div>
+            <span class="status-badge status-{{ pedido.estado }}">{{ pedido.estado }}</span>
+          </div>
+        </div>
+      </a>
+    {% endfor %}
+  {% else %}
+    <div class="small-muted">Sin pedidos todavía.</div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('client_delete', cid=cliente.id) }}" onsubmit="return confirm('¿Eliminar este cliente?');" style="margin-top:16px;">
+    <button type="submit" style="background:none;border:1px solid #f0c8c8;color:#a13c3c;border-radius:12px;padding:10px;width:100%;">🗑️ Eliminar cliente</button>
+  </form>
+{% endblock %}

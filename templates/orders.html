@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block header_title %}🗂️ Pedidos{% endblock %}
+{% block content %}
+  <div class="top-actions">
+    <h2>Pedidos</h2>
+    <a href="{{ url_for('order_new') }}" class="link-btn">+ Nuevo</a>
+  </div>
+
+  <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
+    <a class="icon-btn" href="{{ url_for('orders_list') }}" style="{{ 'background:var(--rose);color:white;' if not estado_filtro else '' }}">Todos</a>
+    {% for e in estados %}
+      <a class="icon-btn" href="{{ url_for('orders_list', estado=e) }}" style="{{ 'background:var(--rose);color:white;' if estado_filtro==e else '' }}">{{ e|capitalize }}</a>
+    {% endfor %}
+  </div>
+
+  {% if pedidos %}
+    {% for pedido in pedidos %}
+      <a href="{{ url_for('order_detail', oid=pedido.id) }}" style="text-decoration:none; color:inherit;">
+        <div class="list-card">
+          <div class="row">
+            <div>
+              <div class="title">Pedido #{{ pedido.id }} {% if pedido.cliente %}· {{ pedido.cliente.nombre }}{% endif %}</div>
+              <div class="sub">{{ pedido.creado.strftime('%d/%m/%Y') }} · {{ '%.2f'|format(pedido.total) }} €</div>
+            </div>
+            <span class="status-badge status-{{ pedido.estado }}">{{ pedido.estado }}</span>
+          </div>
+        </div>
+      </a>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <span class="icon">🗂️</span>
+      No hay pedidos todavía.
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block header_title %}📦 Stock{% endblock %}
+{% block content %}
+  <div class="top-actions">
+    <h2>Fundas en stock</h2>
+    <a href="{{ url_for('stock_new') }}" class="link-btn">+ Añadir</a>
+  </div>
+
+  {% if productos %}
+  <div class="item-grid">
+    {% for p in productos %}
+      <div class="item-card {{ 'low' if p.stock_bajo else '' }}">
+        {% if p.stock_bajo %}<span class="badge">Stock bajo</span>{% endif %}
+        <div class="thumb">{{ p.icono }}</div>
+        <div class="name">{{ p.nombre }}</div>
+        <div class="meta">{{ p.modelo or '' }} {{ p.color or '' }}</div>
+        <div class="meta">{{ p.cantidad }} uds · {{ '%.2f'|format(p.precio) }} €</div>
+        <div style="margin-top:8px; display:flex; gap:6px;">
+          <a class="icon-btn" href="{{ url_for('stock_edit', pid=p.id) }}">Editar</a>
+          <form method="post" action="{{ url_for('stock_delete', pid=p.id) }}" onsubmit="return confirm('¿Eliminar {{ p.nombre }}?');">
+            <button class="icon-btn" style="background:#f7d9d9;color:#a13c3c;border:none;">Borrar</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="empty-state">
+      <span class="icon">📖</span>
+      Todavía no has añadido fundas al stock.
+    </div>
+  {% endif %}
+{% endblock %}
