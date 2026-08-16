@@ -458,3 +458,65 @@ a.link-btn {
   font-size: 12px;
   padding: 20px 6px;
 }
+
+/* Pantallas grandes (ordenador): dejamos de simular un móvil estrecho
+   y aprovechamos el ancho como una página web normal */
+@media (min-width: 720px) {
+  .app {
+    max-width: 1180px;
+    padding-bottom: 40px;
+    display: flex;
+    flex-direction: column;
+  }
+  .header {
+    padding: 26px 36px 30px;
+  }
+  .content {
+    padding: 26px 36px 20px;
+    order: 2;
+  }
+  .tabbar {
+    max-width: 1180px;
+    position: static;
+    transform: none;
+    left: auto;
+    order: 1;
+    border-top: none;
+    border-bottom: 1px solid var(--border);
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 10px 36px;
+    box-shadow: none;
+  }
+  .tabbar a {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  .tabbar a .icon { display: inline; margin-bottom: 0; font-size: 16px; }
+
+  .item-grid {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+  .grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+  .stat-row { flex-wrap: wrap; }
+
+  .kanban-board {
+    margin: 0 -36px;
+    padding-left: 36px;
+    padding-right: 36px;
+  }
+  .kanban-column {
+    flex: 1 1 0;
+    min-width: 220px;
+    max-height: none;
+  }
+  .kanban-jump { flex-wrap: wrap; }
+
+  form.form { max-width: 520px; }
+}
