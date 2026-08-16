@@ -6,31 +6,57 @@
     <a href="{{ url_for('order_new') }}" class="link-btn">+ Nuevo</a>
   </div>
 
-  <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
-    <a class="icon-btn" href="{{ url_for('orders_list') }}" style="{{ 'background:var(--rose);color:white;' if not estado_filtro else '' }}">Todos</a>
+  <div class="kanban-jump">
     {% for e in estados %}
-      <a class="icon-btn" href="{{ url_for('orders_list', estado=e) }}" style="{{ 'background:var(--rose);color:white;' if estado_filtro==e else '' }}">{{ e|capitalize }}</a>
+      <button type="button" class="kanban-jump-btn status-{{ e }}" onclick="scrollToCol('{{ e }}')">
+        {{ e|capitalize }} <span class="count">{{ columnas[e]|length }}</span>
+      </button>
     {% endfor %}
   </div>
 
-  {% if pedidos %}
-    {% for pedido in pedidos %}
-      <a href="{{ url_for('order_detail', oid=pedido.id) }}" style="text-decoration:none; color:inherit;">
-        <div class="list-card">
-          <div class="row">
-            <div>
-              <div class="title">Pedido #{{ pedido.id }} {% if pedido.cliente %}· {{ pedido.cliente.nombre }}{% endif %}</div>
-              <div class="sub">{{ pedido.creado.strftime('%d/%m/%Y') }} · {{ '%.2f'|format(pedido.total) }} €</div>
-            </div>
-            <span class="status-badge status-{{ pedido.estado }}">{{ pedido.estado }}</span>
-          </div>
+  <div class="kanban-board" id="kanban-board">
+    {% for e in estados %}
+      <div class="kanban-column" id="col-{{ e }}">
+        <div class="kanban-column-header status-{{ e }}">
+          {{ e|capitalize }} <span class="count">{{ columnas[e]|length }}</span>
         </div>
-      </a>
+        {% if columnas[e] %}
+          {% for pedido in columnas[e] %}
+            <div class="kanban-card">
+              <a href="{{ url_for('order_detail', oid=pedido.id) }}" class="kanban-card-link">
+                <div class="title">Pedido #{{ pedido.id }}</div>
+                <div class="sub">{% if pedido.cliente %}{{ pedido.cliente.nombre }} · {% endif %}{{ pedido.creado.strftime('%d/%m') }}</div>
+                <div class="sub" style="font-weight:700; color:var(--rose-dark);">{{ '%.2f'|format(pedido.total) }} €</div>
+              </a>
+              <div class="kanban-card-actions">
+                <form method="post" action="{{ url_for('order_move', oid=pedido.id, direction='prev') }}">
+                  <button type="submit" class="kanban-arrow" {{ 'disabled' if e == estados[0] else '' }}>‹</button>
+                </form>
+                <span class="kanban-move-label">mover</span>
+                <form method="post" action="{{ url_for('order_move', oid=pedido.id, direction='next') }}">
+                  <button type="submit" class="kanban-arrow" {{ 'disabled' if e == estados[-1] else '' }}>›</button>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="kanban-empty">Sin pedidos aquí</div>
+        {% endif %}
+      </div>
     {% endfor %}
-  {% else %}
-    <div class="empty-state">
-      <span class="icon">🗂️</span>
-      No hay pedidos todavía.
-    </div>
-  {% endif %}
+  </div>
+
+  <script>
+    function scrollToCol(estado) {
+      const el = document.getElementById('col-' + estado);
+      if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+    }
+    // Si venimos de mover un pedido, la URL trae #col-xxx: nos aseguramos de posicionarnos ahí
+    window.addEventListener('load', function () {
+      if (window.location.hash) {
+        const el = document.querySelector(window.location.hash);
+        if (el) el.scrollIntoView({ inline: 'start', block: 'nearest' });
+      }
+    });
+  </script>
 {% endblock %}

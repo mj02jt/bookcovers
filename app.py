@@ -317,13 +317,9 @@ def register_routes(app):
     # ---------------- PEDIDOS (CRM) ----------------
     @app.route('/pedidos')
     def orders_list():
-        estado_filtro = request.args.get('estado')
-        q = Pedido.query
-        if estado_filtro:
-            q = q.filter_by(estado=estado_filtro)
-        pedidos = q.order_by(Pedido.creado.desc()).all()
-        return render_template('orders.html', pedidos=pedidos, estados=ESTADOS_PEDIDO,
-                                estado_filtro=estado_filtro, active='orders')
+        pedidos = Pedido.query.order_by(Pedido.creado.desc()).all()
+        columnas = {e: [p for p in pedidos if p.estado == e] for e in ESTADOS_PEDIDO}
+        return render_template('orders.html', columnas=columnas, estados=ESTADOS_PEDIDO, active='orders')
 
     @app.route('/pedidos/nuevo', methods=['GET', 'POST'])
     def order_new():
@@ -390,6 +386,21 @@ def register_routes(app):
             db.session.commit()
             flash(f'Pedido #{pedido.id} ahora está "{nuevo_estado}".')
         return redirect(url_for('order_detail', oid=oid))
+
+    @app.route('/pedidos/<int:oid>/mover/<direction>', methods=['POST'])
+    def order_move(oid, direction):
+        pedido = Pedido.query.get_or_404(oid)
+        idx = ESTADOS_PEDIDO.index(pedido.estado) if pedido.estado in ESTADOS_PEDIDO else 0
+        if direction == 'next' and idx < len(ESTADOS_PEDIDO) - 1:
+            pedido.estado = ESTADOS_PEDIDO[idx + 1]
+        elif direction == 'prev' and idx > 0:
+            pedido.estado = ESTADOS_PEDIDO[idx - 1]
+        else:
+            return redirect(url_for('orders_list'))
+        pedido.actualizado = datetime.utcnow()
+        db.session.commit()
+        flash(f'Pedido #{pedido.id} ahora está "{pedido.estado}".')
+        return redirect(url_for('orders_list') + f'#col-{pedido.estado}')
 
     @app.route('/pedidos/<int:oid>/borrar', methods=['POST'])
     def order_delete(oid):

@@ -337,3 +337,124 @@ a.link-btn {
   cursor: pointer;
   text-decoration: none;
 }
+
+/* Tablero de pedidos en columnas (estilo kanban), con desplazamiento horizontal */
+.kanban-jump {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+.kanban-jump-btn {
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 20px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--muted);
+  background: var(--rose-lighter);
+}
+.kanban-jump-btn .count {
+  display: inline-block;
+  background: rgba(0,0,0,0.08);
+  border-radius: 10px;
+  padding: 0 6px;
+  margin-left: 4px;
+  font-size: 11px;
+}
+.kanban-jump-btn.status-pendiente { background: #f5e3c4; color: #9c7317; }
+.kanban-jump-btn.status-preparado { background: #d9e6f7; color: #35618f; }
+.kanban-jump-btn.status-enviado { background: #e0dcf7; color: #5b4e9c; }
+.kanban-jump-btn.status-entregado { background: #d7f0e2; color: #327a52; }
+.kanban-jump-btn.status-cancelado { background: #f7d9d9; color: #a13c3c; }
+
+.kanban-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 12px;
+  margin: 0 -16px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.kanban-column {
+  flex: 0 0 82%;
+  scroll-snap-align: start;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.kanban-column-header {
+  font-weight: 800;
+  font-size: 13px;
+  text-transform: capitalize;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  position: sticky;
+  top: 0;
+}
+.kanban-column-header .count {
+  display: inline-block;
+  background: rgba(0,0,0,0.08);
+  border-radius: 10px;
+  padding: 0 7px;
+  margin-left: 4px;
+  font-size: 11px;
+}
+.kanban-column-header.status-pendiente { background: #f5e3c4; color: #9c7317; }
+.kanban-column-header.status-preparado { background: #d9e6f7; color: #35618f; }
+.kanban-column-header.status-enviado { background: #e0dcf7; color: #5b4e9c; }
+.kanban-column-header.status-entregado { background: #d7f0e2; color: #327a52; }
+.kanban-column-header.status-cancelado { background: #f7d9d9; color: #a13c3c; }
+
+.kanban-card {
+  background: var(--rose-lighter);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.kanban-card-link { text-decoration: none; color: inherit; display: block; }
+.kanban-card .title { font-weight: 700; font-size: 14px; }
+.kanban-card .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.kanban-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.kanban-card-actions form { margin: 0; }
+.kanban-move-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.kanban-arrow {
+  background: white;
+  border: 1px solid var(--rose-light);
+  color: var(--rose-dark);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+.kanban-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.kanban-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 20px 6px;
+}
