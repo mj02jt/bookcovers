@@ -28,6 +28,12 @@
         <span>{{ '%.2f'|format(it.cantidad * it.precio_unitario) }} €</span>
       </div>
     {% endfor %}
+    {% if pedido.metodo_envio %}
+      <div class="item-row">
+        <span>🚚 Envío ({{ pedido.metodo_envio.nombre }})</span>
+        <span>{{ '%.2f'|format(pedido.envio_precio) }} €</span>
+      </div>
+    {% endif %}
     <div class="item-row" style="font-weight:800;">
       <span>Total</span>
       <span>{{ '%.2f'|format(pedido.total) }} €</span>

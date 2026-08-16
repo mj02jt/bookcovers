@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from config import Config
 from extensions import db
-from models import Producto, Cliente, Pedido, PedidoItem, Movimiento, ESTADOS_PEDIDO, TIPOS_MOVIMIENTO
+from models import Producto, Cliente, Pedido, PedidoItem, Movimiento, MetodoEnvio, ESTADOS_PEDIDO, TIPOS_MOVIMIENTO
 import ai_scan
 
 ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
@@ -48,6 +48,17 @@ def resolver_cliente_id(form):
     return int(cliente_id) if cliente_id else None
 
 
+def resolver_envio(form):
+    """Devuelve (metodo_envio_id, precio_envio) a partir del formulario."""
+    envio_id = form.get('metodo_envio_id') or None
+    if not envio_id:
+        return None, 0.0
+    metodo = db.session.get(MetodoEnvio, int(envio_id))
+    if not metodo:
+        return None, 0.0
+    return metodo.id, metodo.precio
+
+
 def procesar_items_pedido(pedido, form):
     """Crea los PedidoItem de un formulario, usando siempre el precio del stock cuando hay producto."""
     descripciones = form.getlist('descripcion')
@@ -78,6 +89,8 @@ MIGRACIONES = [
     "ALTER TABLE productos ADD COLUMN IF NOT EXISTS foto_mimetype VARCHAR(50)",
     "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS captura_data BYTEA",
     "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS captura_mimetype VARCHAR(50)",
+    "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS metodo_envio_id INTEGER REFERENCES metodos_envio(id)",
+    "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS envio_precio FLOAT DEFAULT 0",
 ]
 
 
@@ -187,6 +200,46 @@ def register_routes(app):
         flash(f'"{p.nombre}" eliminado del stock.')
         return redirect(url_for('stock_list'))
 
+    # ---------------- MÉTODOS DE ENVÍO (Vinted, Correos, recogida en mano...) ----------------
+    @app.route('/envios')
+    def envios_list():
+        envios = MetodoEnvio.query.order_by(MetodoEnvio.nombre).all()
+        return render_template('envios.html', envios=envios, active='stock')
+
+    @app.route('/envios/nuevo', methods=['GET', 'POST'])
+    def envio_new():
+        if request.method == 'POST':
+            e = MetodoEnvio(
+                nombre=request.form['nombre'],
+                precio=float(request.form.get('precio') or 0),
+                activo=True,
+            )
+            db.session.add(e)
+            db.session.commit()
+            flash(f'"{e.nombre}" añadido a envíos.')
+            return redirect(url_for('envios_list'))
+        return render_template('envio_form.html', envio=None, active='stock')
+
+    @app.route('/envios/<int:eid>/editar', methods=['GET', 'POST'])
+    def envio_edit(eid):
+        e = MetodoEnvio.query.get_or_404(eid)
+        if request.method == 'POST':
+            e.nombre = request.form['nombre']
+            e.precio = float(request.form.get('precio') or 0)
+            e.activo = bool(request.form.get('activo'))
+            db.session.commit()
+            flash(f'"{e.nombre}" actualizado.')
+            return redirect(url_for('envios_list'))
+        return render_template('envio_form.html', envio=e, active='stock')
+
+    @app.route('/envios/<int:eid>/borrar', methods=['POST'])
+    def envio_delete(eid):
+        e = MetodoEnvio.query.get_or_404(eid)
+        db.session.delete(e)
+        db.session.commit()
+        flash(f'"{e.nombre}" eliminado de envíos.')
+        return redirect(url_for('envios_list'))
+
     # ---------------- ESCANEAR PEDIDO ----------------
     @app.route('/escanear', methods=['GET'])
     def scan_upload():
@@ -227,11 +280,12 @@ def register_routes(app):
 
         productos = Producto.query.order_by(Producto.nombre).all()
         clientes = Cliente.query.order_by(Cliente.nombre).all()
+        envios = MetodoEnvio.query.filter_by(activo=True).order_by(MetodoEnvio.nombre).all()
         return render_template(
             'scan_review.html', active='scan',
             imagen=rel_path, items=detected_items, error=error,
             cliente_detectado=cliente_detectado,
-            productos=productos, clientes=clientes,
+            productos=productos, clientes=clientes, envios=envios,
         )
 
     @app.route('/escanear/crear-pedido', methods=['POST'])
@@ -254,7 +308,8 @@ def register_routes(app):
                 }.get(ext, 'image/jpeg')
 
         db.session.add(pedido)
-        pedido.total = procesar_items_pedido(pedido, request.form)
+        pedido.metodo_envio_id, pedido.envio_precio = resolver_envio(request.form)
+        pedido.total = procesar_items_pedido(pedido, request.form) + pedido.envio_precio
         db.session.commit()
         flash(f'Pedido #{pedido.id} creado.')
         return redirect(url_for('order_detail', oid=pedido.id))
@@ -274,16 +329,18 @@ def register_routes(app):
     def order_new():
         productos = Producto.query.order_by(Producto.nombre).all()
         clientes = Cliente.query.order_by(Cliente.nombre).all()
+        envios = MetodoEnvio.query.filter_by(activo=True).order_by(MetodoEnvio.nombre).all()
         if request.method == 'POST':
             cliente_id = resolver_cliente_id(request.form)
             pedido = Pedido(cliente_id=cliente_id, estado='pendiente', notas=request.form.get('notas'))
             db.session.add(pedido)
 
-            pedido.total = procesar_items_pedido(pedido, request.form)
+            pedido.metodo_envio_id, pedido.envio_precio = resolver_envio(request.form)
+            pedido.total = procesar_items_pedido(pedido, request.form) + pedido.envio_precio
             db.session.commit()
             flash(f'Pedido #{pedido.id} creado.')
             return redirect(url_for('order_detail', oid=pedido.id))
-        return render_template('order_form.html', productos=productos, clientes=clientes, active='orders')
+        return render_template('order_form.html', productos=productos, clientes=clientes, envios=envios, active='orders')
 
     @app.route('/pedidos/<int:oid>')
     def order_detail(oid):
@@ -295,6 +352,7 @@ def register_routes(app):
         pedido = Pedido.query.get_or_404(oid)
         productos = Producto.query.order_by(Producto.nombre).all()
         clientes = Cliente.query.order_by(Cliente.nombre).all()
+        envios = MetodoEnvio.query.filter_by(activo=True).order_by(MetodoEnvio.nombre).all()
 
         if request.method == 'POST':
             # Devolvemos al stock las cantidades del pedido tal y como estaba antes de editarlo
@@ -306,7 +364,8 @@ def register_routes(app):
 
             pedido.cliente_id = resolver_cliente_id(request.form)
             pedido.notas = request.form.get('notas')
-            pedido.total = procesar_items_pedido(pedido, request.form)
+            pedido.metodo_envio_id, pedido.envio_precio = resolver_envio(request.form)
+            pedido.total = procesar_items_pedido(pedido, request.form) + pedido.envio_precio
             pedido.actualizado = datetime.utcnow()
             db.session.commit()
             flash(f'Pedido #{pedido.id} actualizado.')
@@ -317,7 +376,7 @@ def register_routes(app):
             for it in pedido.items
         ]
         return render_template(
-            'order_edit.html', pedido=pedido, productos=productos, clientes=clientes,
+            'order_edit.html', pedido=pedido, productos=productos, clientes=clientes, envios=envios,
             items_actuales=items_actuales, active='orders',
         )
 

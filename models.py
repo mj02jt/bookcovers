@@ -42,12 +42,25 @@ class Cliente(db.Model):
 ESTADOS_PEDIDO = ['pendiente', 'preparado', 'enviado', 'entregado', 'cancelado']
 
 
+class MetodoEnvio(db.Model):
+    """Formas de envío configurables (Vinted, Correos, recogida en mano...) con su tarifa."""
+    __tablename__ = 'metodos_envio'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(80), nullable=False)
+    precio = db.Column(db.Float, default=0.0)
+    activo = db.Column(db.Boolean, default=True)
+    creado = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class Pedido(db.Model):
     __tablename__ = 'pedidos'
 
     id = db.Column(db.Integer, primary_key=True)
     cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=True)
     estado = db.Column(db.String(20), default='pendiente')
+    metodo_envio_id = db.Column(db.Integer, db.ForeignKey('metodos_envio.id'), nullable=True)
+    envio_precio = db.Column(db.Float, default=0.0)  # tarifa en el momento del pedido (no cambia si luego se edita la tarifa)
     total = db.Column(db.Float, default=0.0)
     notas = db.Column(db.Text)
     captura_imagen = db.Column(db.String(250))  # ruta antigua (ya no se usa, se deja por compatibilidad)
@@ -57,6 +70,7 @@ class Pedido(db.Model):
     actualizado = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     items = db.relationship('PedidoItem', backref='pedido', lazy=True, cascade='all, delete-orphan')
+    metodo_envio = db.relationship('MetodoEnvio')
 
 
 class PedidoItem(db.Model):

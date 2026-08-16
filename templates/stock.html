@@ -5,6 +5,7 @@
     <h2>Fundas en stock</h2>
     <a href="{{ url_for('stock_new') }}" class="link-btn">+ Añadir</a>
   </div>
+  <a href="{{ url_for('envios_list') }}" class="icon-btn" style="display:inline-block; margin-bottom:14px;">🚚 Métodos de envío</a>
 
   {% if productos %}
   <div class="item-grid">

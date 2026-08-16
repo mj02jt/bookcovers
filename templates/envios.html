@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block header_title %}🚚 Envíos{% endblock %}
+{% block content %}
+  <div class="top-actions">
+    <h2>Métodos de envío</h2>
+    <a href="{{ url_for('envio_new') }}" class="link-btn">+ Añadir</a>
+  </div>
+  <a href="{{ url_for('stock_list') }}" class="small-muted" style="display:inline-block; margin-bottom:14px;">← Volver a Stock</a>
+
+  {% if envios %}
+    {% for e in envios %}
+      <div class="list-card">
+        <div class="row">
+          <div>
+            <div class="title">{{ e.nombre }} {{ '' if e.activo else '(desactivado)' }}</div>
+            <div class="sub">{{ '%.2f'|format(e.precio) }} €</div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <a class="icon-btn" href="{{ url_for('envio_edit', eid=e.id) }}">Editar</a>
+            <form method="post" action="{{ url_for('envio_delete', eid=e.id) }}" onsubmit="return confirm('¿Eliminar {{ e.nombre }}?');">
+              <button class="icon-btn" style="background:#f7d9d9;color:#a13c3c;border:none;">Borrar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <span class="icon">🚚</span>
+      Todavía no has añadido formas de envío (Vinted, Correos, recogida en mano...).
+    </div>
+  {% endif %}
+{% endblock %}

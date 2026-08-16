@@ -27,6 +27,19 @@
     <div id="items-wrap"></div>
     <button type="button" class="action-btn" onclick="addItemRow()">➕ Añadir funda</button>
 
+    <div class="section-title">🚚 Envío</div>
+    {% if envios %}
+      <select name="metodo_envio_id" id="envio-select" onchange="onEnvioChange()" required>
+        <option value="" disabled {{ 'selected' if not pedido.metodo_envio_id else '' }}>-- Elige forma de envío --</option>
+        {% for e in envios %}
+          <option value="{{ e.id }}" data-precio="{{ e.precio }}" {{ 'selected' if pedido.metodo_envio_id == e.id else '' }}>{{ e.nombre }} · {{ '%.2f'|format(e.precio) }} €</option>
+        {% endfor %}
+      </select>
+      <div class="small-muted" id="envio-precio-info"></div>
+    {% else %}
+      <div class="small-muted">No has añadido ninguna forma de envío todavía. <a href="{{ url_for('envios_list') }}">Añádela aquí</a>.</div>
+    {% endif %}
+
     <button type="submit">💾 Guardar cambios</button>
   </form>
 
@@ -102,6 +115,16 @@
       const box = document.getElementById('nuevo-cliente-fields');
       box.style.display = (select.value === 'nuevo') ? 'flex' : 'none';
     }
+    function onEnvioChange() {
+      const select = document.getElementById('envio-select');
+      const info = document.getElementById('envio-precio-info');
+      const opt = select.options[select.selectedIndex];
+      if (select.value) {
+        info.textContent = 'Se añadirá ' + parseFloat(opt.dataset.precio).toFixed(2) + ' € al total del pedido.';
+      } else {
+        info.textContent = '';
+      }
+    }
 
     // Precarga las fundas que ya tenía el pedido
     const itemsActuales = {{ items_actuales|tojson }};
@@ -112,5 +135,7 @@
     } else {
       addItemRow();
     }
+    // Muestra el precio del envío ya seleccionado (si lo había)
+    onEnvioChange();
   </script>
 {% endblock %}
