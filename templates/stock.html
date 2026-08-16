@@ -11,9 +11,9 @@
     {% for p in productos %}
       <div class="item-card {{ 'low' if p.stock_bajo else '' }}">
         {% if p.stock_bajo %}<span class="badge">Stock bajo</span>{% endif %}
-        {% if p.foto %}
+        {% if p.foto_data %}
           <div class="thumb" style="padding:0; overflow:hidden;">
-            <img src="{{ url_for('static', filename=p.foto) }}" alt="{{ p.nombre }}" style="width:100%; height:100%; object-fit:cover;">
+            <img src="{{ url_for('producto_foto', pid=p.id) }}" alt="{{ p.nombre }}" style="width:100%; height:100%; object-fit:cover;">
           </div>
         {% else %}
           <div class="thumb">{{ p.icono }}</div>

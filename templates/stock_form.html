@@ -5,8 +5,8 @@
     <label>Nombre</label>
     <input name="nombre" required value="{{ producto.nombre if producto else '' }}" placeholder="Ej: Funda floral A5">
 
-    {% if producto and producto.foto %}
-      <img class="preview-img" src="{{ url_for('static', filename=producto.foto) }}" alt="Foto actual">
+    {% if producto and producto.foto_data %}
+      <img class="preview-img" src="{{ url_for('producto_foto', pid=producto.id) }}" alt="Foto actual">
       <label style="display:flex; align-items:center; gap:8px; font-weight:400;">
         <input type="checkbox" name="quitar_foto" value="1" style="width:auto;"> Quitar foto actual
       </label>

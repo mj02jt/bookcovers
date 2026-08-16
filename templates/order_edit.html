@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block header_title %}✏️ Editar pedido #{{ pedido.id }}{% endblock %}
+{% block content %}
+  <form class="form" method="post">
+    <label>Cliente</label>
+    <select name="cliente_id" id="cliente-select" onchange="toggleNuevoCliente()">
+      <option value="">-- Sin asignar --</option>
+      <option value="nuevo">➕ Crear cliente nuevo</option>
+      {% for c in clientes %}
+        <option value="{{ c.id }}" {{ 'selected' if pedido.cliente_id == c.id else '' }}>{{ c.nombre }}</option>
+      {% endfor %}
+    </select>
+
+    <div id="nuevo-cliente-fields" style="display:none; flex-direction:column; gap:12px; background:var(--rose-lighter); border-radius:12px; padding:12px;">
+      <label>Nombre del cliente nuevo</label>
+      <input name="nuevo_cliente_nombre" placeholder="Nombre y apellidos">
+      <label>Teléfono</label>
+      <input name="nuevo_cliente_telefono">
+      <label>Instagram</label>
+      <input name="nuevo_cliente_instagram" placeholder="@usuario">
+    </div>
+
+    <label>Notas</label>
+    <textarea name="notas" rows="2">{{ pedido.notas or '' }}</textarea>
+
+    <div class="section-title">🧾 Fundas del pedido</div>
+    <div id="items-wrap"></div>
+    <button type="button" class="action-btn" onclick="addItemRow()">➕ Añadir funda</button>
+
+    <button type="submit">💾 Guardar cambios</button>
+  </form>
+
+  <template id="item-row-template">
+    <div class="item-row-form">
+      <button type="button" class="remove-item-btn" onclick="this.closest('.item-row-form').remove()" title="Quitar">✕</button>
+      <div class="item-row-fields">
+        <div class="field-group qty-group">
+          <label>Ud.</label>
+          <select name="cantidad" class="qty-select">
+            {% for n in range(1, 21) %}
+              <option value="{{ n }}">{{ n }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field-group desc-group">
+          <label>Descripción</label>
+          <select name="producto_id" class="producto-select" onchange="onProductoChange(this)">
+            <option value="">-- Otra (fuera de stock) --</option>
+            {% for p in productos %}
+              <option value="{{ p.id }}" data-precio="{{ p.precio }}" data-nombre="{{ p.nombre }} {{ p.modelo or '' }} {{ p.color or '' }}">{{ p.nombre }} {{ '(' + p.modelo + ')' if p.modelo else '' }} · {{ p.cantidad }} uds</option>
+            {% endfor %}
+          </select>
+          <input type="text" name="descripcion" class="desc-input" placeholder="Describe la funda" style="margin-top:6px;">
+        </div>
+        <div class="field-group price-group">
+          <label>Precio</label>
+          <span class="precio-display">-- €</span>
+          <input type="number" name="precio" class="precio-input" step="0.01" value="0" style="display:none;">
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    function addItemRow(cantidadInicial, productoId, descripcionInicial) {
+      const tpl = document.getElementById('item-row-template');
+      const clone = tpl.content.cloneNode(true);
+      const row = clone.querySelector('.item-row-form');
+      if (cantidadInicial) row.querySelector('.qty-select').value = cantidadInicial;
+      const prodSelect = row.querySelector('.producto-select');
+      if (productoId) {
+        prodSelect.value = String(productoId);
+        onProductoChange(prodSelect);
+      } else if (descripcionInicial) {
+        row.querySelector('.desc-input').value = descripcionInicial;
+      }
+      document.getElementById('items-wrap').appendChild(clone);
+    }
+    function onProductoChange(select) {
+      const row = select.closest('.item-row-form');
+      const opt = select.options[select.selectedIndex];
+      const descInput = row.querySelector('.desc-input');
+      const precioDisplay = row.querySelector('.precio-display');
+      const precioInput = row.querySelector('.precio-input');
+      if (select.value) {
+        const precio = parseFloat(opt.dataset.precio || 0);
+        descInput.value = opt.dataset.nombre;
+        descInput.readOnly = true;
+        precioDisplay.textContent = precio.toFixed(2) + ' €';
+        precioDisplay.style.display = 'inline-block';
+        precioInput.style.display = 'none';
+        precioInput.value = precio;
+      } else {
+        descInput.readOnly = false;
+        precioDisplay.style.display = 'none';
+        precioInput.style.display = 'block';
+        precioInput.value = 0;
+      }
+    }
+    function toggleNuevoCliente() {
+      const select = document.getElementById('cliente-select');
+      const box = document.getElementById('nuevo-cliente-fields');
+      box.style.display = (select.value === 'nuevo') ? 'flex' : 'none';
+    }
+
+    // Precarga las fundas que ya tenía el pedido
+    const itemsActuales = {{ items_actuales|tojson }};
+    if (itemsActuales && itemsActuales.length) {
+      itemsActuales.forEach(function (it) {
+        addItemRow(it.cantidad || 1, it.producto_id, it.descripcion);
+      });
+    } else {
+      addItemRow();
+    }
+  </script>
+{% endblock %}

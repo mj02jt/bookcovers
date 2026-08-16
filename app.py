@@ -2,7 +2,7 @@ import os
 import uuid
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from werkzeug.utils import secure_filename
 from sqlalchemy import text
 
@@ -18,13 +18,16 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
 
 
-def save_uploaded_photo(file, upload_folder):
-    """Guarda una imagen subida y devuelve la ruta relativa (uploads/xxx) o None."""
+def leer_imagen_subida(file):
+    """Lee una imagen subida y devuelve (bytes, mimetype) o (None, None).
+    Se guarda dentro de la base de datos para que no se pierda entre despliegues."""
     if not file or file.filename == '' or not allowed_file(file.filename):
-        return None
-    fname = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-    file.save(os.path.join(upload_folder, fname))
-    return f"uploads/{fname}"
+        return None, None
+    data = file.read()
+    if not data:
+        return None, None
+    mimetype = file.mimetype or 'image/jpeg'
+    return data, mimetype
 
 
 def resolver_cliente_id(form):
@@ -69,14 +72,27 @@ def procesar_items_pedido(pedido, form):
     return total
 
 
+MIGRACIONES = [
+    "ALTER TABLE productos ADD COLUMN IF NOT EXISTS foto VARCHAR(250)",
+    "ALTER TABLE productos ADD COLUMN IF NOT EXISTS foto_data BYTEA",
+    "ALTER TABLE productos ADD COLUMN IF NOT EXISTS foto_mimetype VARCHAR(50)",
+    "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS captura_data BYTEA",
+    "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS captura_mimetype VARCHAR(50)",
+]
+
+
 def run_migrations(app):
-    """Pequeñas migraciones para bases de datos ya creadas antes de añadir columnas nuevas."""
+    """Pequeñas migraciones para bases de datos ya creadas antes de añadir columnas nuevas.
+    En sqlite (desarrollo local) no hace falta: create_all ya crea las columnas nuevas."""
     with app.app_context():
-        try:
-            with db.engine.begin() as conn:
-                conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS foto VARCHAR(250)"))
-        except Exception:
-            pass  # ya existe la columna, o la base es sqlite y ya se creó con create_all
+        if not str(db.engine.url).startswith('postgresql'):
+            return
+        for sql in MIGRACIONES:
+            try:
+                with db.engine.begin() as conn:
+                    conn.execute(text(sql))
+            except Exception:
+                pass  # ya existe la columna
 
 
 def create_app():
@@ -98,6 +114,21 @@ def register_routes(app):
     def index():
         return redirect(url_for('stock_list'))
 
+    # ---------------- IMÁGENES (guardadas en la base de datos) ----------------
+    @app.route('/imagen/producto/<int:pid>')
+    def producto_foto(pid):
+        p = Producto.query.get_or_404(pid)
+        if not p.foto_data:
+            return '', 404
+        return Response(p.foto_data, mimetype=p.foto_mimetype or 'image/jpeg')
+
+    @app.route('/imagen/pedido/<int:oid>')
+    def pedido_captura_img(oid):
+        pedido = Pedido.query.get_or_404(oid)
+        if not pedido.captura_data:
+            return '', 404
+        return Response(pedido.captura_data, mimetype=pedido.captura_mimetype or 'image/jpeg')
+
     # ---------------- STOCK ----------------
     @app.route('/stock')
     def stock_list():
@@ -107,13 +138,14 @@ def register_routes(app):
     @app.route('/stock/nuevo', methods=['GET', 'POST'])
     def stock_new():
         if request.method == 'POST':
-            foto = save_uploaded_photo(request.files.get('foto'), app.config['UPLOAD_FOLDER'])
+            foto_data, foto_mimetype = leer_imagen_subida(request.files.get('foto'))
             p = Producto(
                 nombre=request.form['nombre'],
                 modelo=request.form.get('modelo'),
                 color=request.form.get('color'),
                 icono=request.form.get('icono') or '📖',
-                foto=foto,
+                foto_data=foto_data,
+                foto_mimetype=foto_mimetype,
                 precio=float(request.form.get('precio') or 0),
                 cantidad=int(request.form.get('cantidad') or 0),
                 stock_minimo=int(request.form.get('stock_minimo') or 3),
@@ -132,11 +164,13 @@ def register_routes(app):
             p.modelo = request.form.get('modelo')
             p.color = request.form.get('color')
             p.icono = request.form.get('icono') or '📖'
-            nueva_foto = save_uploaded_photo(request.files.get('foto'), app.config['UPLOAD_FOLDER'])
-            if nueva_foto:
-                p.foto = nueva_foto
+            foto_data, foto_mimetype = leer_imagen_subida(request.files.get('foto'))
+            if foto_data:
+                p.foto_data = foto_data
+                p.foto_mimetype = foto_mimetype
             elif request.form.get('quitar_foto'):
-                p.foto = None
+                p.foto_data = None
+                p.foto_mimetype = None
             p.precio = float(request.form.get('precio') or 0)
             p.cantidad = int(request.form.get('cantidad') or 0)
             p.stock_minimo = int(request.form.get('stock_minimo') or 3)
@@ -202,12 +236,24 @@ def register_routes(app):
 
     @app.route('/escanear/crear-pedido', methods=['POST'])
     def scan_create_order():
-        imagen = request.form.get('imagen')
+        imagen = request.form.get('imagen')  # ruta temporal en disco (uploads/xxx)
 
         cliente_id = resolver_cliente_id(request.form)
-        pedido = Pedido(cliente_id=cliente_id, captura_imagen=imagen, estado='pendiente')
-        db.session.add(pedido)
+        pedido = Pedido(cliente_id=cliente_id, estado='pendiente')
 
+        # Guardamos la captura dentro de la base de datos para que no se pierda en el próximo despliegue
+        if imagen:
+            fpath = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(imagen))
+            if os.path.exists(fpath):
+                with open(fpath, 'rb') as f:
+                    pedido.captura_data = f.read()
+                ext = imagen.rsplit('.', 1)[-1].lower()
+                pedido.captura_mimetype = {
+                    'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+                    'webp': 'image/webp', 'gif': 'image/gif',
+                }.get(ext, 'image/jpeg')
+
+        db.session.add(pedido)
         pedido.total = procesar_items_pedido(pedido, request.form)
         db.session.commit()
         flash(f'Pedido #{pedido.id} creado.')
@@ -243,6 +289,37 @@ def register_routes(app):
     def order_detail(oid):
         pedido = Pedido.query.get_or_404(oid)
         return render_template('order_detail.html', pedido=pedido, estados=ESTADOS_PEDIDO, active='orders')
+
+    @app.route('/pedidos/<int:oid>/editar', methods=['GET', 'POST'])
+    def order_edit(oid):
+        pedido = Pedido.query.get_or_404(oid)
+        productos = Producto.query.order_by(Producto.nombre).all()
+        clientes = Cliente.query.order_by(Cliente.nombre).all()
+
+        if request.method == 'POST':
+            # Devolvemos al stock las cantidades del pedido tal y como estaba antes de editarlo
+            for item in pedido.items:
+                if item.producto:
+                    item.producto.cantidad += item.cantidad
+                db.session.delete(item)
+            db.session.flush()
+
+            pedido.cliente_id = resolver_cliente_id(request.form)
+            pedido.notas = request.form.get('notas')
+            pedido.total = procesar_items_pedido(pedido, request.form)
+            pedido.actualizado = datetime.utcnow()
+            db.session.commit()
+            flash(f'Pedido #{pedido.id} actualizado.')
+            return redirect(url_for('order_detail', oid=pedido.id))
+
+        items_actuales = [
+            {'cantidad': it.cantidad, 'producto_id': it.producto_id, 'descripcion': it.descripcion}
+            for it in pedido.items
+        ]
+        return render_template(
+            'order_edit.html', pedido=pedido, productos=productos, clientes=clientes,
+            items_actuales=items_actuales, active='orders',
+        )
 
     @app.route('/pedidos/<int:oid>/estado', methods=['POST'])
     def order_update_status(oid):

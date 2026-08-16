@@ -7,12 +7,17 @@
   </div>
 
   <div class="list-card">
-    <div class="sub">Cliente</div>
-    <div class="title">{{ pedido.cliente.nombre if pedido.cliente else 'Sin asignar' }}</div>
+    <div class="row">
+      <div>
+        <div class="sub">Cliente</div>
+        <div class="title">{{ pedido.cliente.nombre if pedido.cliente else 'Sin asignar' }}</div>
+      </div>
+      <a href="{{ url_for('order_edit', oid=pedido.id) }}" class="icon-btn">✏️ Editar</a>
+    </div>
   </div>
 
-  {% if pedido.captura_imagen %}
-    <img class="preview-img" src="{{ url_for('static', filename=pedido.captura_imagen) }}">
+  {% if pedido.captura_data %}
+    <img class="preview-img" src="{{ url_for('pedido_captura_img', oid=pedido.id) }}">
   {% endif %}
 
   <div class="section-title">🧾 Fundas</div>

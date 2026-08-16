@@ -11,7 +11,9 @@ class Producto(db.Model):
     modelo = db.Column(db.String(100))          # ej: "A5", "Tapa dura 20x14"
     color = db.Column(db.String(60))
     icono = db.Column(db.String(10), default='📖')
-    foto = db.Column(db.String(250))  # ruta a la foto subida (opcional)
+    foto = db.Column(db.String(250))  # ruta antigua (ya no se usa, se deja por compatibilidad)
+    foto_data = db.Column(db.LargeBinary)     # foto guardada dentro de la base de datos
+    foto_mimetype = db.Column(db.String(50))
     precio = db.Column(db.Float, default=0.0)
     cantidad = db.Column(db.Integer, default=0)
     stock_minimo = db.Column(db.Integer, default=3)
@@ -48,7 +50,9 @@ class Pedido(db.Model):
     estado = db.Column(db.String(20), default='pendiente')
     total = db.Column(db.Float, default=0.0)
     notas = db.Column(db.Text)
-    captura_imagen = db.Column(db.String(250))  # ruta a la captura subida
+    captura_imagen = db.Column(db.String(250))  # ruta antigua (ya no se usa, se deja por compatibilidad)
+    captura_data = db.Column(db.LargeBinary)     # captura guardada dentro de la base de datos
+    captura_mimetype = db.Column(db.String(50))
     creado = db.Column(db.DateTime, default=datetime.utcnow)
     actualizado = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
