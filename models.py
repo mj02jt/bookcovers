@@ -11,6 +11,7 @@ class Producto(db.Model):
     modelo = db.Column(db.String(100))          # ej: "A5", "Tapa dura 20x14"
     color = db.Column(db.String(60))
     icono = db.Column(db.String(10), default='📖')
+    foto = db.Column(db.String(250))  # ruta a la foto subida (opcional)
     precio = db.Column(db.Float, default=0.0)
     cantidad = db.Column(db.Integer, default=0)
     stock_minimo = db.Column(db.Integer, default=3)

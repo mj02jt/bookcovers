@@ -1,11 +1,21 @@
 {% extends 'base.html' %}
 {% block header_title %}{{ '✏️ Editar' if producto else '➕ Nueva funda' }}{% endblock %}
 {% block content %}
-  <form class="form" method="post">
+  <form class="form" method="post" enctype="multipart/form-data">
     <label>Nombre</label>
     <input name="nombre" required value="{{ producto.nombre if producto else '' }}" placeholder="Ej: Funda floral A5">
 
-    <label>Icono (emoji)</label>
+    {% if producto and producto.foto %}
+      <img class="preview-img" src="{{ url_for('static', filename=producto.foto) }}" alt="Foto actual">
+      <label style="display:flex; align-items:center; gap:8px; font-weight:400;">
+        <input type="checkbox" name="quitar_foto" value="1" style="width:auto;"> Quitar foto actual
+      </label>
+    {% endif %}
+
+    <label>Foto (opcional)</label>
+    <input type="file" name="foto" accept="image/*">
+
+    <label>Icono (emoji, se usa si no hay foto)</label>
     <input name="icono" value="{{ producto.icono if producto else '📖' }}">
 
     <label>Modelo / tamaño</label>

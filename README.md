@@ -1,4 +1,4 @@
-# Tienda Fundas — app de gestión
+# BOOKCOVERS — app de gestión
 
 App web para gestionar la tienda de fundas de libros: stock, reconocimiento de pedidos a partir de capturas de pantalla, CRM de pedidos, clientes y contabilidad. Mismo mecanismo que bot-nevera (Flask + base de datos), con un diseño mobile-first similar.
 

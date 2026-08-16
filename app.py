@@ -4,6 +4,7 @@ from datetime import datetime
 
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from werkzeug.utils import secure_filename
+from sqlalchemy import text
 
 from config import Config
 from extensions import db
@@ -17,6 +18,25 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
 
 
+def save_uploaded_photo(file, upload_folder):
+    """Guarda una imagen subida y devuelve la ruta relativa (uploads/xxx) o None."""
+    if not file or file.filename == '' or not allowed_file(file.filename):
+        return None
+    fname = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
+    file.save(os.path.join(upload_folder, fname))
+    return f"uploads/{fname}"
+
+
+def run_migrations(app):
+    """Pequeñas migraciones para bases de datos ya creadas antes de añadir columnas nuevas."""
+    with app.app_context():
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE productos ADD COLUMN IF NOT EXISTS foto VARCHAR(250)"))
+        except Exception:
+            pass  # ya existe la columna, o la base es sqlite y ya se creó con create_all
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -25,6 +45,7 @@ def create_app():
     db.init_app(app)
     with app.app_context():
         db.create_all()
+    run_migrations(app)
     register_routes(app)
     return app
 
@@ -44,11 +65,13 @@ def register_routes(app):
     @app.route('/stock/nuevo', methods=['GET', 'POST'])
     def stock_new():
         if request.method == 'POST':
+            foto = save_uploaded_photo(request.files.get('foto'), app.config['UPLOAD_FOLDER'])
             p = Producto(
                 nombre=request.form['nombre'],
                 modelo=request.form.get('modelo'),
                 color=request.form.get('color'),
                 icono=request.form.get('icono') or '📖',
+                foto=foto,
                 precio=float(request.form.get('precio') or 0),
                 cantidad=int(request.form.get('cantidad') or 0),
                 stock_minimo=int(request.form.get('stock_minimo') or 3),
@@ -67,6 +90,11 @@ def register_routes(app):
             p.modelo = request.form.get('modelo')
             p.color = request.form.get('color')
             p.icono = request.form.get('icono') or '📖'
+            nueva_foto = save_uploaded_photo(request.files.get('foto'), app.config['UPLOAD_FOLDER'])
+            if nueva_foto:
+                p.foto = nueva_foto
+            elif request.form.get('quitar_foto'):
+                p.foto = None
             p.precio = float(request.form.get('precio') or 0)
             p.cantidad = int(request.form.get('cantidad') or 0)
             p.stock_minimo = int(request.form.get('stock_minimo') or 3)
