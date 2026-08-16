@@ -27,6 +27,48 @@ def save_uploaded_photo(file, upload_folder):
     return f"uploads/{fname}"
 
 
+def resolver_cliente_id(form):
+    """Si el usuario eligió '+ Crear cliente nuevo', lo crea y devuelve su id."""
+    cliente_id = form.get('cliente_id') or None
+    if cliente_id == 'nuevo':
+        nombre_nuevo = (form.get('nuevo_cliente_nombre') or '').strip()
+        if nombre_nuevo:
+            nuevo = Cliente(
+                nombre=nombre_nuevo,
+                telefono=form.get('nuevo_cliente_telefono'),
+                instagram=form.get('nuevo_cliente_instagram'),
+            )
+            db.session.add(nuevo)
+            db.session.flush()  # asigna el id sin cerrar la transacción
+            return nuevo.id
+        return None
+    return int(cliente_id) if cliente_id else None
+
+
+def procesar_items_pedido(pedido, form):
+    """Crea los PedidoItem de un formulario, usando siempre el precio del stock cuando hay producto."""
+    descripciones = form.getlist('descripcion')
+    cantidades = form.getlist('cantidad')
+    producto_ids = form.getlist('producto_id')
+    precios = form.getlist('precio')
+    total = 0.0
+    for desc, cant, pid, precio in zip(descripciones, cantidades, producto_ids, precios):
+        if not desc and not pid:
+            continue
+        cant = int(cant or 1)
+        prod = db.session.get(Producto, int(pid)) if pid else None
+        precio_final = prod.precio if prod else float(precio or 0)
+        desc_final = desc or (prod.nombre if prod else '')
+        db.session.add(PedidoItem(
+            pedido=pedido, producto_id=prod.id if prod else None,
+            descripcion=desc_final, cantidad=cant, precio_unitario=precio_final,
+        ))
+        total += cant * precio_final
+        if prod:
+            prod.cantidad = max(0, prod.cantidad - cant)
+    return total
+
+
 def run_migrations(app):
     """Pequeñas migraciones para bases de datos ya creadas antes de añadir columnas nuevas."""
     with app.app_context():
@@ -160,37 +202,13 @@ def register_routes(app):
 
     @app.route('/escanear/crear-pedido', methods=['POST'])
     def scan_create_order():
-        cliente_id = request.form.get('cliente_id') or None
         imagen = request.form.get('imagen')
-        descripciones = request.form.getlist('descripcion')
-        cantidades = request.form.getlist('cantidad')
-        producto_ids = request.form.getlist('producto_id')
-        precios = request.form.getlist('precio')
 
+        cliente_id = resolver_cliente_id(request.form)
         pedido = Pedido(cliente_id=cliente_id, captura_imagen=imagen, estado='pendiente')
         db.session.add(pedido)
 
-        total = 0.0
-        for desc, cant, pid, precio in zip(descripciones, cantidades, producto_ids, precios):
-            if not desc and not pid:
-                continue
-            cant = int(cant or 1)
-            precio = float(precio or 0)
-            item = PedidoItem(
-                pedido=pedido,
-                producto_id=int(pid) if pid else None,
-                descripcion=desc,
-                cantidad=cant,
-                precio_unitario=precio,
-            )
-            db.session.add(item)
-            total += cant * precio
-            if pid:
-                prod = db.session.get(Producto, int(pid))
-                if prod:
-                    prod.cantidad = max(0, prod.cantidad - cant)
-
-        pedido.total = total
+        pedido.total = procesar_items_pedido(pedido, request.form)
         db.session.commit()
         flash(f'Pedido #{pedido.id} creado.')
         return redirect(url_for('order_detail', oid=pedido.id))
@@ -211,30 +229,11 @@ def register_routes(app):
         productos = Producto.query.order_by(Producto.nombre).all()
         clientes = Cliente.query.order_by(Cliente.nombre).all()
         if request.method == 'POST':
-            cliente_id = request.form.get('cliente_id') or None
+            cliente_id = resolver_cliente_id(request.form)
             pedido = Pedido(cliente_id=cliente_id, estado='pendiente', notas=request.form.get('notas'))
             db.session.add(pedido)
 
-            descripciones = request.form.getlist('descripcion')
-            cantidades = request.form.getlist('cantidad')
-            producto_ids = request.form.getlist('producto_id')
-            precios = request.form.getlist('precio')
-            total = 0.0
-            for desc, cant, pid, precio in zip(descripciones, cantidades, producto_ids, precios):
-                if not desc and not pid:
-                    continue
-                cant = int(cant or 1)
-                precio = float(precio or 0)
-                db.session.add(PedidoItem(
-                    pedido=pedido, producto_id=int(pid) if pid else None,
-                    descripcion=desc, cantidad=cant, precio_unitario=precio,
-                ))
-                total += cant * precio
-                if pid:
-                    prod = db.session.get(Producto, int(pid))
-                    if prod:
-                        prod.cantidad = max(0, prod.cantidad - cant)
-            pedido.total = total
+            pedido.total = procesar_items_pedido(pedido, request.form)
             db.session.commit()
             flash(f'Pedido #{pedido.id} creado.')
             return redirect(url_for('order_detail', oid=pedido.id))
