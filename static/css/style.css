@@ -152,21 +152,56 @@ body {
 .item-card .thumb {
   background: #f2f2f2;
   border-radius: 10px;
-  height: 56px;
+  height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 26px;
   margin-bottom: 8px;
+  overflow: hidden;
+}
+.item-card .thumb-photo { padding: 0; }
+.item-card .thumb-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter 0.2s;
+}
+.item-card .thumb-empty {
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+}
+.item-card .thumb-empty span { font-size: 11px; }
+.item-card.sin-stock .thumb-photo img {
+  filter: grayscale(1) brightness(0.95);
+  opacity: 0.75;
 }
 .item-card .name { font-weight: 600; font-size: 14px; }
 .item-card .meta { font-size: 12px; color: var(--muted); }
-.item-card.low { border-color: var(--red); }
-.item-card .badge {
-  position: absolute; top: 8px; right: 8px;
-  font-size: 10px; background: var(--red); color: white;
-  padding: 2px 6px; border-radius: 20px;
+
+/* Burbuja con la cantidad en stock, superpuesta sobre la foto.
+   Colores provisionales: se ajustarán al código de colores que definas. */
+.stock-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
+.stock-badge.ok { background: var(--green); }
+.stock-badge.low { background: var(--amber); }
+.stock-badge.out { background: var(--red); }
 
 .list-card {
   background: var(--card-bg);

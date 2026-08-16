@@ -48,6 +48,32 @@ def resolver_cliente_id(form):
     return int(cliente_id) if cliente_id else None
 
 
+CATEGORIA_VENTA_AUTO = 'Venta (pedido entregado)'
+
+
+def sincronizar_contabilidad_pedido(pedido):
+    """Cuando un pedido pasa a 'entregado' se registra el ingreso automáticamente
+    (una única vez). Si deja de estar entregado, se retira ese ingreso automático
+    para que la contabilidad no se descuadre."""
+    existente = Movimiento.query.filter_by(pedido_id=pedido.id, categoria=CATEGORIA_VENTA_AUTO).first()
+    if pedido.estado == 'entregado':
+        cliente_nombre = pedido.cliente.nombre if pedido.cliente else 'Sin cliente'
+        if not existente:
+            db.session.add(Movimiento(
+                tipo='ingreso',
+                concepto=f'Pedido #{pedido.id} · {cliente_nombre}',
+                importe=pedido.total,
+                categoria=CATEGORIA_VENTA_AUTO,
+                pedido_id=pedido.id,
+            ))
+        else:
+            # El pedido ya estaba entregado y se ha editado: mantenemos el importe al día
+            existente.importe = pedido.total
+            existente.concepto = f'Pedido #{pedido.id} · {cliente_nombre}'
+    elif existente:
+        db.session.delete(existente)
+
+
 def resolver_envio(form):
     """Devuelve (metodo_envio_id, precio_envio) a partir del formulario."""
     envio_id = form.get('metodo_envio_id') or None
@@ -363,6 +389,7 @@ def register_routes(app):
             pedido.metodo_envio_id, pedido.envio_precio = resolver_envio(request.form)
             pedido.total = procesar_items_pedido(pedido, request.form) + pedido.envio_precio
             pedido.actualizado = datetime.utcnow()
+            sincronizar_contabilidad_pedido(pedido)
             db.session.commit()
             flash(f'Pedido #{pedido.id} actualizado.')
             return redirect(url_for('order_detail', oid=pedido.id))
@@ -383,6 +410,7 @@ def register_routes(app):
         if nuevo_estado in ESTADOS_PEDIDO:
             pedido.estado = nuevo_estado
             pedido.actualizado = datetime.utcnow()
+            sincronizar_contabilidad_pedido(pedido)
             db.session.commit()
             flash(f'Pedido #{pedido.id} ahora está "{nuevo_estado}".')
         return redirect(url_for('order_detail', oid=oid))
@@ -398,6 +426,7 @@ def register_routes(app):
         else:
             return redirect(url_for('orders_list'))
         pedido.actualizado = datetime.utcnow()
+        sincronizar_contabilidad_pedido(pedido)
         db.session.commit()
         flash(f'Pedido #{pedido.id} ahora está "{pedido.estado}".')
         return redirect(url_for('orders_list') + f'#col-{pedido.estado}')

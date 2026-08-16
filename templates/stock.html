@@ -10,18 +10,17 @@
   {% if productos %}
   <div class="item-grid">
     {% for p in productos %}
-      <div class="item-card {{ 'low' if p.stock_bajo else '' }}">
-        {% if p.stock_bajo %}<span class="badge">Stock bajo</span>{% endif %}
+      <div class="item-card {{ 'sin-stock' if p.cantidad == 0 else '' }}">
+        <span class="stock-badge {{ 'out' if p.cantidad == 0 else ('low' if p.stock_bajo else 'ok') }}">{{ p.cantidad }}</span>
         {% if p.foto_data %}
-          <div class="thumb" style="padding:0; overflow:hidden;">
-            <img src="{{ url_for('producto_foto', pid=p.id) }}" alt="{{ p.nombre }}" style="width:100%; height:100%; object-fit:cover;">
+          <div class="thumb thumb-photo">
+            <img src="{{ url_for('producto_foto', pid=p.id) }}" alt="{{ p.nombre }}">
           </div>
         {% else %}
-          <div class="thumb">{{ p.icono }}</div>
+          <div class="thumb thumb-empty">📷<span>Sin foto</span></div>
         {% endif %}
         <div class="name">{{ p.nombre }}</div>
-        <div class="meta">{{ p.modelo or '' }} {{ p.color or '' }}</div>
-        <div class="meta">{{ p.cantidad }} uds · {{ '%.2f'|format(p.precio) }} €</div>
+        <div class="meta">{{ '%.2f'|format(p.precio) }} €</div>
         <div style="margin-top:8px; display:flex; gap:6px;">
           <a class="icon-btn" href="{{ url_for('stock_edit', pid=p.id) }}">Editar</a>
           <form method="post" action="{{ url_for('stock_delete', pid=p.id) }}" onsubmit="return confirm('¿Eliminar {{ p.nombre }}?');">
