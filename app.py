@@ -1,10 +1,13 @@
+import io
 import os
 import uuid
+import zipfile
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, send_file
 from werkzeug.utils import secure_filename
 from sqlalchemy import text
+from PIL import Image, ImageDraw, ImageFont
 
 from config import Config
 from extensions import db
@@ -46,6 +49,60 @@ def resolver_cliente_id(form):
             return nuevo.id
         return None
     return int(cliente_id) if cliente_id else None
+
+
+def _cargar_fuente(tam, negrita=True):
+    rutas = [
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' if negrita else '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+    ]
+    for ruta in rutas:
+        try:
+            return ImageFont.truetype(ruta, tam)
+        except Exception:
+            continue
+    return ImageFont.load_default()
+
+
+def generar_imagen_catalogo(producto):
+    """Genera una imagen cuadrada de la funda con el nombre y el precio superpuestos,
+    lista para compartir con clientes por WhatsApp/Instagram."""
+    ANCHO, ALTO, BANDA = 800, 800, 150
+    alto_foto = ALTO - BANDA
+
+    base = None
+    if producto.foto_data:
+        try:
+            base = Image.open(io.BytesIO(producto.foto_data)).convert('RGB')
+        except Exception:
+            base = None
+
+    lienzo = Image.new('RGB', (ANCHO, ALTO), '#fdf3f5')
+    if base:
+        ratio = max(ANCHO / base.width, alto_foto / base.height)
+        nuevo = base.resize((max(1, int(base.width * ratio)), max(1, int(base.height * ratio))))
+        x = max(0, (nuevo.width - ANCHO) // 2)
+        y = max(0, (nuevo.height - alto_foto) // 2)
+        recorte = nuevo.crop((x, y, x + ANCHO, y + alto_foto))
+        lienzo.paste(recorte, (0, 0))
+    else:
+        draw_vacio = ImageDraw.Draw(lienzo)
+        fuente_vacio = _cargar_fuente(46)
+        draw_vacio.multiline_text((ANCHO / 2, alto_foto / 2), producto.nombre,
+                                   font=fuente_vacio, anchor='mm', fill='#b8576d', align='center')
+
+    draw = ImageDraw.Draw(lienzo)
+    draw.rectangle([0, alto_foto, ANCHO, ALTO], fill='#b8576d')
+    nombre_txt = producto.nombre
+    if producto.modelo or producto.color:
+        nombre_txt += f' · {(producto.modelo or "")} {(producto.color or "")}'.rstrip()
+    draw.text((28, alto_foto + 18), nombre_txt[:40], font=_cargar_fuente(32), fill='white')
+    draw.text((28, alto_foto + 68), f'{producto.precio:.2f} €', font=_cargar_fuente(46), fill='white')
+
+    buf = io.BytesIO()
+    lienzo.save(buf, format='JPEG', quality=88)
+    buf.seek(0)
+    return buf
 
 
 CATEGORIA_VENTA_AUTO = 'Venta (pedido entregado)'
@@ -217,6 +274,34 @@ def register_routes(app):
             flash(f'"{p.nombre}" actualizado.')
             return redirect(url_for('stock_list'))
         return render_template('stock_form.html', producto=p, active='stock')
+
+    @app.route('/stock/catalogo')
+    def stock_catalogo():
+        productos = Producto.query.filter(Producto.cantidad > 0).order_by(Producto.nombre).all()
+        if not productos:
+            flash('No hay fundas con stock disponible para generar el catálogo.')
+            return redirect(url_for('stock_list'))
+
+        buf_zip = io.BytesIO()
+        with zipfile.ZipFile(buf_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+            usados = set()
+            for p in productos:
+                img_buf = generar_imagen_catalogo(p)
+                base_nombre = secure_filename(p.nombre) or f'funda-{p.id}'
+                nombre_archivo = f'{base_nombre}.jpg'
+                i = 2
+                while nombre_archivo in usados:
+                    nombre_archivo = f'{base_nombre}-{i}.jpg'
+                    i += 1
+                usados.add(nombre_archivo)
+                zf.writestr(nombre_archivo, img_buf.getvalue())
+        buf_zip.seek(0)
+
+        fecha = datetime.utcnow().strftime('%Y%m%d')
+        return send_file(
+            buf_zip, mimetype='application/zip', as_attachment=True,
+            download_name=f'catalogo_bookcovers_{fecha}.zip',
+        )
 
     @app.route('/stock/<int:pid>/borrar', methods=['POST'])
     def stock_delete(pid):
