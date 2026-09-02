@@ -251,7 +251,9 @@ def resolver_envio(form):
 
 
 def procesar_items_pedido(pedido, form):
-    """Crea los PedidoItem de un formulario, usando siempre el precio del stock cuando hay producto."""
+    """Crea los PedidoItem de un formulario. El precio de cada línea es el que venga del
+    formulario (por defecto el del stock, pero editable a mano para aplicar descuentos, etc.).
+    Si no llega precio, se usa el del producto de stock como respaldo."""
     descripciones = form.getlist('descripcion')
     cantidades = form.getlist('cantidad')
     producto_ids = form.getlist('producto_id')
@@ -262,7 +264,10 @@ def procesar_items_pedido(pedido, form):
             continue
         cant = int(cant or 1)
         prod = db.session.get(Producto, int(pid)) if pid else None
-        precio_final = prod.precio if prod else float(precio or 0)
+        if precio not in (None, ''):
+            precio_final = float(precio)
+        else:
+            precio_final = prod.precio if prod else 0.0
         desc_final = desc or (prod.nombre if prod else '')
         db.session.add(PedidoItem(
             pedido=pedido, producto_id=prod.id if prod else None,
@@ -611,7 +616,10 @@ def register_routes(app):
             return redirect(url_for('order_detail', oid=pedido.id))
 
         items_actuales = [
-            {'cantidad': it.cantidad, 'producto_id': it.producto_id, 'descripcion': it.descripcion}
+            {
+                'cantidad': it.cantidad, 'producto_id': it.producto_id,
+                'descripcion': it.descripcion, 'precio': it.precio_unitario,
+            }
             for it in pedido.items
         ]
         return render_template(
