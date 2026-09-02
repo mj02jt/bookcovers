@@ -7,7 +7,8 @@
   </div>
   <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
     <a href="{{ url_for('envios_list') }}" class="icon-btn">🚚 Métodos de envío</a>
-    <a href="{{ url_for('stock_catalogo') }}" class="icon-btn">📥 Descargar catálogo</a>
+    <a href="{{ url_for('stock_catalogo') }}" class="icon-btn">📥 Descargar catálogo (ZIP)</a>
+    <a href="{{ url_for('stock_catalogo_pdf') }}" class="icon-btn">📄 Descargar catálogo (PDF)</a>
   </div>
 
   {% if productos %}
