@@ -319,10 +319,16 @@ def register_routes(app):
         return Response(pedido.captura_data, mimetype=pedido.captura_mimetype or 'image/jpeg')
 
     # ---------------- STOCK ----------------
+    TAMANOS_STOCK = {'pequena': 'PEQUEÑA', 'mediana': 'MEDIANA', 'grande': 'GRANDE'}
+
     @app.route('/stock')
     def stock_list():
-        productos = Producto.query.order_by(Producto.nombre).all()
-        return render_template('stock.html', productos=productos, active='stock')
+        tamano = request.args.get('tamano', 'todas')
+        query = Producto.query
+        if tamano in TAMANOS_STOCK:
+            query = query.filter(db.func.upper(Producto.modelo) == TAMANOS_STOCK[tamano])
+        productos = query.order_by(Producto.nombre).all()
+        return render_template('stock.html', productos=productos, active='stock', tamano_actual=tamano)
 
     @app.route('/stock/nuevo', methods=['GET', 'POST'])
     def stock_new():
