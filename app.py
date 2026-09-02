@@ -8,6 +8,10 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from werkzeug.utils import secure_filename
 from sqlalchemy import text
 from PIL import Image, ImageDraw, ImageFont
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas as pdf_canvas
+from reportlab.lib.utils import ImageReader
 
 from config import Config
 from extensions import db
@@ -101,6 +105,95 @@ def generar_imagen_catalogo(producto):
 
     buf = io.BytesIO()
     lienzo.save(buf, format='JPEG', quality=88)
+    buf.seek(0)
+    return buf
+
+
+def generar_pdf_catalogo(productos):
+    """Genera un PDF A4 con una rejilla de fundas: foto, nombre, tamaño y precio.
+    Pensado para imprimir o enviar como catálogo de stock actualizado."""
+    COLS, ROWS = 3, 3
+    MARGEN = 12 * mm
+    GAP = 6 * mm
+    CABECERA = 14 * mm
+
+    buf = io.BytesIO()
+    c = pdf_canvas.Canvas(buf, pagesize=A4)
+    ancho_pag, alto_pag = A4
+
+    cell_w = (ancho_pag - 2 * MARGEN - (COLS - 1) * GAP) / COLS
+    cell_h = (alto_pag - 2 * MARGEN - CABECERA - (ROWS - 1) * GAP) / ROWS
+    img_box_h = cell_h - 16 * mm
+
+    def dibujar_cabecera():
+        c.setFont('Helvetica-Bold', 14)
+        c.drawString(MARGEN, alto_pag - MARGEN + 2, 'Catálogo BOOKCOVERS · Stock actual')
+        c.setFont('Helvetica', 9)
+        c.setFillColorRGB(0.4, 0.4, 0.4)
+        c.drawRightString(ancho_pag - MARGEN, alto_pag - MARGEN + 2,
+                           datetime.utcnow().strftime('%d/%m/%Y'))
+        c.setFillColorRGB(0, 0, 0)
+
+    por_pagina = COLS * ROWS
+    for i, p in enumerate(productos):
+        idx_en_pagina = i % por_pagina
+        if idx_en_pagina == 0:
+            if i != 0:
+                c.showPage()
+            dibujar_cabecera()
+
+        row = idx_en_pagina // COLS
+        col = idx_en_pagina % COLS
+        x = MARGEN + col * (cell_w + GAP)
+        y_top = alto_pag - MARGEN - CABECERA - row * (cell_h + GAP)
+
+        # borde sutil de la tarjeta
+        c.setStrokeColorRGB(0.85, 0.85, 0.85)
+        c.rect(x, y_top - cell_h, cell_w, cell_h)
+
+        # foto
+        img_reader = None
+        if p.foto_data:
+            try:
+                im = Image.open(io.BytesIO(p.foto_data)).convert('RGB')
+                imgbuf = io.BytesIO()
+                im.save(imgbuf, format='JPEG', quality=85)
+                imgbuf.seek(0)
+                img_reader = ImageReader(imgbuf)
+            except Exception:
+                img_reader = None
+
+        if img_reader:
+            iw, ih = img_reader.getSize()
+            escala = min(cell_w / iw, img_box_h / ih)
+            draw_w, draw_h = iw * escala, ih * escala
+            img_x = x + (cell_w - draw_w) / 2
+            img_y = y_top - img_box_h + (img_box_h - draw_h) / 2
+            c.drawImage(img_reader, img_x, img_y, width=draw_w, height=draw_h,
+                        preserveAspectRatio=True, mask='auto')
+        else:
+            c.setFont('Helvetica', 8)
+            c.setFillColorRGB(0.6, 0.6, 0.6)
+            c.drawCentredString(x + cell_w / 2, y_top - img_box_h / 2, 'Sin foto')
+            c.setFillColorRGB(0, 0, 0)
+
+        # textos: nombre, tamaño, precio
+        centro_x = x + cell_w / 2
+        texto_y = y_top - img_box_h - 5 * mm
+        c.setFont('Helvetica-Bold', 9)
+        nombre = p.nombre if len(p.nombre) <= 26 else p.nombre[:24] + '…'
+        c.drawCentredString(centro_x, texto_y, nombre)
+
+        c.setFont('Helvetica', 8)
+        c.setFillColorRGB(0.35, 0.35, 0.35)
+        tamano = p.modelo or 'Tamaño único'
+        c.drawCentredString(centro_x, texto_y - 4.5 * mm, tamano[:30])
+        c.setFillColorRGB(0, 0, 0)
+
+        c.setFont('Helvetica-Bold', 10)
+        c.drawCentredString(centro_x, texto_y - 9.5 * mm, f'{p.precio:.2f} €')
+
+    c.save()
     buf.seek(0)
     return buf
 
@@ -301,6 +394,20 @@ def register_routes(app):
         return send_file(
             buf_zip, mimetype='application/zip', as_attachment=True,
             download_name=f'catalogo_bookcovers_{fecha}.zip',
+        )
+
+    @app.route('/stock/catalogo/pdf')
+    def stock_catalogo_pdf():
+        productos = Producto.query.filter(Producto.cantidad > 0).order_by(Producto.nombre).all()
+        if not productos:
+            flash('No hay fundas con stock disponible para generar el catálogo.')
+            return redirect(url_for('stock_list'))
+
+        buf_pdf = generar_pdf_catalogo(productos)
+        fecha = datetime.utcnow().strftime('%Y%m%d')
+        return send_file(
+            buf_pdf, mimetype='application/pdf', as_attachment=True,
+            download_name=f'catalogo_bookcovers_{fecha}.pdf',
         )
 
     @app.route('/stock/<int:pid>/borrar', methods=['POST'])
