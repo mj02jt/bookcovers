@@ -109,7 +109,7 @@ def generar_imagen_catalogo(producto):
     return buf
 
 
-def generar_pdf_catalogo(productos):
+def generar_pdf_catalogo(productos, etiqueta_tamano=None):
     """Genera un PDF A4 con una rejilla de fundas: foto, nombre, tamaño y precio.
     Pensado para imprimir o enviar como catálogo de stock actualizado."""
     COLS, ROWS = 3, 3
@@ -125,9 +125,13 @@ def generar_pdf_catalogo(productos):
     cell_h = (alto_pag - 2 * MARGEN - CABECERA - (ROWS - 1) * GAP) / ROWS
     img_box_h = cell_h - 16 * mm
 
+    titulo_cabecera = 'Catálogo BOOKCOVERS · Stock actual'
+    if etiqueta_tamano:
+        titulo_cabecera += f' ({etiqueta_tamano})'
+
     def dibujar_cabecera():
         c.setFont('Helvetica-Bold', 14)
-        c.drawString(MARGEN, alto_pag - MARGEN + 2, 'Catálogo BOOKCOVERS · Stock actual')
+        c.drawString(MARGEN, alto_pag - MARGEN + 2, titulo_cabecera)
         c.setFont('Helvetica', 9)
         c.setFillColorRGB(0.4, 0.4, 0.4)
         c.drawRightString(ancho_pag - MARGEN, alto_pag - MARGEN + 2,
@@ -196,6 +200,17 @@ def generar_pdf_catalogo(productos):
     c.save()
     buf.seek(0)
     return buf
+
+
+TAMANOS_STOCK = {'pequena': 'PEQUEÑA', 'mediana': 'MEDIANA', 'grande': 'GRANDE'}
+ETIQUETA_TAMANO = {'pequena': 'Pequeña', 'mediana': 'Mediana', 'grande': 'Grande'}
+
+
+def filtrar_por_tamano(query, tamano):
+    """Aplica el filtro de tamaño (pequena/mediana/grande) a una query de Producto, si procede."""
+    if tamano in TAMANOS_STOCK:
+        return query.filter(db.func.upper(db.func.trim(Producto.modelo)) == TAMANOS_STOCK[tamano])
+    return query
 
 
 CATEGORIA_VENTA_AUTO = 'Venta (pedido entregado)'
@@ -319,14 +334,10 @@ def register_routes(app):
         return Response(pedido.captura_data, mimetype=pedido.captura_mimetype or 'image/jpeg')
 
     # ---------------- STOCK ----------------
-    TAMANOS_STOCK = {'pequena': 'PEQUEÑA', 'mediana': 'MEDIANA', 'grande': 'GRANDE'}
-
     @app.route('/stock')
     def stock_list():
         tamano = request.args.get('tamano', 'todas')
-        query = Producto.query
-        if tamano in TAMANOS_STOCK:
-            query = query.filter(db.func.upper(db.func.trim(Producto.modelo)) == TAMANOS_STOCK[tamano])
+        query = filtrar_por_tamano(Producto.query, tamano)
         productos = query.order_by(Producto.nombre).all()
         return render_template('stock.html', productos=productos, active='stock', tamano_actual=tamano)
 
@@ -376,10 +387,12 @@ def register_routes(app):
 
     @app.route('/stock/catalogo')
     def stock_catalogo():
-        productos = Producto.query.filter(Producto.cantidad > 0).order_by(Producto.nombre).all()
+        tamano = request.args.get('tamano', 'todas')
+        query = filtrar_por_tamano(Producto.query.filter(Producto.cantidad > 0), tamano)
+        productos = query.order_by(Producto.nombre).all()
         if not productos:
             flash('No hay fundas con stock disponible para generar el catálogo.')
-            return redirect(url_for('stock_list'))
+            return redirect(url_for('stock_list', tamano=tamano))
 
         buf_zip = io.BytesIO()
         with zipfile.ZipFile(buf_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -397,23 +410,28 @@ def register_routes(app):
         buf_zip.seek(0)
 
         fecha = datetime.utcnow().strftime('%Y%m%d')
+        sufijo = f'_{tamano}' if tamano in TAMANOS_STOCK else ''
         return send_file(
             buf_zip, mimetype='application/zip', as_attachment=True,
-            download_name=f'catalogo_bookcovers_{fecha}.zip',
+            download_name=f'catalogo_bookcovers{sufijo}_{fecha}.zip',
         )
 
     @app.route('/stock/catalogo/pdf')
     def stock_catalogo_pdf():
-        productos = Producto.query.filter(Producto.cantidad > 0).order_by(Producto.nombre).all()
+        tamano = request.args.get('tamano', 'todas')
+        query = filtrar_por_tamano(Producto.query.filter(Producto.cantidad > 0), tamano)
+        productos = query.order_by(Producto.nombre).all()
         if not productos:
             flash('No hay fundas con stock disponible para generar el catálogo.')
-            return redirect(url_for('stock_list'))
+            return redirect(url_for('stock_list', tamano=tamano))
 
-        buf_pdf = generar_pdf_catalogo(productos)
+        etiqueta = ETIQUETA_TAMANO.get(tamano)
+        buf_pdf = generar_pdf_catalogo(productos, etiqueta_tamano=etiqueta)
         fecha = datetime.utcnow().strftime('%Y%m%d')
+        sufijo = f'_{tamano}' if tamano in TAMANOS_STOCK else ''
         return send_file(
             buf_pdf, mimetype='application/pdf', as_attachment=True,
-            download_name=f'catalogo_bookcovers_{fecha}.pdf',
+            download_name=f'catalogo_bookcovers{sufijo}_{fecha}.pdf',
         )
 
     @app.route('/stock/<int:pid>/borrar', methods=['POST'])
