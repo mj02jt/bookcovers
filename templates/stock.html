@@ -7,8 +7,8 @@
   </div>
   <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
     <a href="{{ url_for('envios_list') }}" class="icon-btn">🚚 Métodos de envío</a>
-    <a href="{{ url_for('stock_catalogo') }}" class="icon-btn">📥 Descargar catálogo (ZIP)</a>
-    <a href="{{ url_for('stock_catalogo_pdf') }}" class="icon-btn">📄 Descargar catálogo (PDF)</a>
+    <a href="{{ url_for('stock_catalogo', tamano=tamano_actual) if tamano_actual != 'todas' else url_for('stock_catalogo') }}" class="icon-btn">📥 Descargar catálogo{{ ' (' + tamano_actual|capitalize + ')' if tamano_actual != 'todas' else '' }} (ZIP)</a>
+    <a href="{{ url_for('stock_catalogo_pdf', tamano=tamano_actual) if tamano_actual != 'todas' else url_for('stock_catalogo_pdf') }}" class="icon-btn">📄 Descargar catálogo{{ ' (' + tamano_actual|capitalize + ')' if tamano_actual != 'todas' else '' }} (PDF)</a>
   </div>
 
   <div class="filter-chips">
