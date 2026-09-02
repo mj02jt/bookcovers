@@ -321,18 +321,12 @@ def register_routes(app):
     # ---------------- STOCK ----------------
     TAMANOS_STOCK = {'pequena': 'PEQUEÑA', 'mediana': 'MEDIANA', 'grande': 'GRANDE'}
 
-    @app.route('/debug/modelos')
-    def debug_modelos():
-        from sqlalchemy import func
-        filas = db.session.query(Producto.modelo, func.count(Producto.id)).group_by(Producto.modelo).all()
-        return jsonify([{'modelo': repr(m), 'count': c} for m, c in filas])
-
     @app.route('/stock')
     def stock_list():
         tamano = request.args.get('tamano', 'todas')
         query = Producto.query
         if tamano in TAMANOS_STOCK:
-            query = query.filter(db.func.upper(Producto.modelo) == TAMANOS_STOCK[tamano])
+            query = query.filter(db.func.upper(db.func.trim(Producto.modelo)) == TAMANOS_STOCK[tamano])
         productos = query.order_by(Producto.nombre).all()
         return render_template('stock.html', productos=productos, active='stock', tamano_actual=tamano)
 
