@@ -11,6 +11,13 @@
     <a href="{{ url_for('stock_catalogo_pdf') }}" class="icon-btn">📄 Descargar catálogo (PDF)</a>
   </div>
 
+  <div class="filter-chips">
+    <a href="{{ url_for('stock_list') }}" class="filter-chip {{ 'active' if tamano_actual == 'todas' else '' }}">Todas</a>
+    <a href="{{ url_for('stock_list', tamano='pequena') }}" class="filter-chip {{ 'active' if tamano_actual == 'pequena' else '' }}">Pequeña</a>
+    <a href="{{ url_for('stock_list', tamano='mediana') }}" class="filter-chip {{ 'active' if tamano_actual == 'mediana' else '' }}">Mediana</a>
+    <a href="{{ url_for('stock_list', tamano='grande') }}" class="filter-chip {{ 'active' if tamano_actual == 'grande' else '' }}">Grande</a>
+  </div>
+
   {% if productos %}
   <div class="item-grid">
     {% for p in productos %}
@@ -37,7 +44,11 @@
   {% else %}
     <div class="empty-state">
       <span class="icon">📖</span>
-      Todavía no has añadido fundas al stock.
+      {% if tamano_actual != 'todas' %}
+        No hay fundas de este tamaño en stock.
+      {% else %}
+        Todavía no has añadido fundas al stock.
+      {% endif %}
     </div>
   {% endif %}
 {% endblock %}
