@@ -555,3 +555,26 @@ a.link-btn {
 
   form.form { max-width: 520px; }
 }
+
+/* Filtro de tamaño en Stock */
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.filter-chip {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--card-bg);
+  text-decoration: none;
+}
+.filter-chip.active {
+  background: var(--rose);
+  border-color: var(--rose);
+  color: white;
+}
