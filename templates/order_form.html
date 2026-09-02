@@ -67,8 +67,7 @@
         </div>
         <div class="field-group price-group">
           <label>Precio</label>
-          <span class="precio-display">-- €</span>
-          <input type="number" name="precio" class="precio-input" step="0.01" value="0" style="display:none;">
+          <input type="number" name="precio" class="precio-input" step="0.01" min="0" value="0">
         </div>
       </div>
     </div>
@@ -81,24 +80,20 @@
       document.getElementById('items-wrap').appendChild(clone);
     }
     function onProductoChange(select) {
+      // Al elegir una funda del stock, el precio se rellena con el precio de venta
+      // configurado en Stock, pero se puede editar a mano (para aplicar descuentos, etc.).
       const row = select.closest('.item-row-form');
       const opt = select.options[select.selectedIndex];
       const descInput = row.querySelector('.desc-input');
-      const precioDisplay = row.querySelector('.precio-display');
       const precioInput = row.querySelector('.precio-input');
       if (select.value) {
         const precio = parseFloat(opt.dataset.precio || 0);
         descInput.value = opt.dataset.nombre;
         descInput.readOnly = true;
-        precioDisplay.textContent = precio.toFixed(2) + ' €';
-        precioDisplay.style.display = 'inline-block';
-        precioInput.style.display = 'none';
-        precioInput.value = precio;
+        precioInput.value = precio.toFixed(2);
       } else {
         descInput.value = '';
         descInput.readOnly = false;
-        precioDisplay.style.display = 'none';
-        precioInput.style.display = 'block';
         precioInput.value = 0;
       }
     }

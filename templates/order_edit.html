@@ -67,46 +67,50 @@
         </div>
         <div class="field-group price-group">
           <label>Precio</label>
-          <span class="precio-display">-- €</span>
-          <input type="number" name="precio" class="precio-input" step="0.01" value="0" style="display:none;">
+          <input type="number" name="precio" class="precio-input" step="0.01" min="0" value="0">
         </div>
       </div>
     </div>
   </template>
 
   <script>
-    function addItemRow(cantidadInicial, productoId, descripcionInicial) {
+    function addItemRow(cantidadInicial, productoId, descripcionInicial, precioInicial) {
       const tpl = document.getElementById('item-row-template');
       const clone = tpl.content.cloneNode(true);
       const row = clone.querySelector('.item-row-form');
       if (cantidadInicial) row.querySelector('.qty-select').value = cantidadInicial;
       const prodSelect = row.querySelector('.producto-select');
+      const descInput = row.querySelector('.desc-input');
+      const precioInput = row.querySelector('.precio-input');
       if (productoId) {
         prodSelect.value = String(productoId);
-        onProductoChange(prodSelect);
+        const opt = prodSelect.options[prodSelect.selectedIndex];
+        descInput.value = opt ? opt.dataset.nombre : (descripcionInicial || '');
+        descInput.readOnly = true;
       } else if (descripcionInicial) {
-        row.querySelector('.desc-input').value = descripcionInicial;
+        descInput.value = descripcionInicial;
       }
+      // El precio de la línea es el que tenía guardado el pedido (puede llevar un
+      // descuento manual), no el precio actual del producto en Stock.
+      precioInput.value = (precioInicial !== undefined && precioInicial !== null)
+        ? parseFloat(precioInicial).toFixed(2) : 0;
       document.getElementById('items-wrap').appendChild(clone);
     }
     function onProductoChange(select) {
+      // Se usa solo cuando el usuario cambia manualmente la funda elegida en una fila:
+      // rellena el precio con el precio actual de Stock, pero se puede editar después.
       const row = select.closest('.item-row-form');
       const opt = select.options[select.selectedIndex];
       const descInput = row.querySelector('.desc-input');
-      const precioDisplay = row.querySelector('.precio-display');
       const precioInput = row.querySelector('.precio-input');
       if (select.value) {
         const precio = parseFloat(opt.dataset.precio || 0);
         descInput.value = opt.dataset.nombre;
         descInput.readOnly = true;
-        precioDisplay.textContent = precio.toFixed(2) + ' €';
-        precioDisplay.style.display = 'inline-block';
-        precioInput.style.display = 'none';
-        precioInput.value = precio;
+        precioInput.value = precio.toFixed(2);
       } else {
+        descInput.value = '';
         descInput.readOnly = false;
-        precioDisplay.style.display = 'none';
-        precioInput.style.display = 'block';
         precioInput.value = 0;
       }
     }
@@ -130,7 +134,7 @@
     const itemsActuales = {{ items_actuales|tojson }};
     if (itemsActuales && itemsActuales.length) {
       itemsActuales.forEach(function (it) {
-        addItemRow(it.cantidad || 1, it.producto_id, it.descripcion);
+        addItemRow(it.cantidad || 1, it.producto_id, it.descripcion, it.precio);
       });
     } else {
       addItemRow();
